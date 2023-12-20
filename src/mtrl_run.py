@@ -300,7 +300,9 @@ def run_sequential(args, logger):
                     _, statistics = test_runner.run(test_mode=True, task_embedding=task_embedding)
                     # dict_keys(['dead_allies', 'dead_enemies', 'battle_won', 'n_episodes', 'ep_length', 'epsilon', 'return_mean', 'return_std', 'returns'])
                     single_env_return_list.append(statistics["returns"])
-                    single_env_win_rate_list.append(statistics["battle_won"])
+                    #if not "battle_won" in statistics:
+                    #    print(f"{statistics=}") # statistics={'returns': 7.607843137254902}
+                    single_env_win_rate_list.append(statistics.get("battle_won", 0))
                 prefix = f"single_env/speed_{TRAIN_SPEED[i]}_"
                 return_mean = np.mean(single_env_return_list)
                 win_rate_mean = np.mean(single_env_win_rate_list)
@@ -334,7 +336,9 @@ def run_sequential(args, logger):
 
                         # dict_keys(['dead_allies', 'dead_enemies', 'battle_won', 'n_episodes', 'ep_length', 'epsilon', 'return_mean', 'return_std', 'returns'])
                         single_env_return_list.append(statistics["returns"])
-                        single_env_win_rate_list.append(statistics["battle_won"])
+                        # if not "battle_won" in statistics:
+                        #     print(f"{statistics=}")
+                        single_env_win_rate_list.append(statistics.get("battle_won", 0))
                     prefix = f"single_env/speed_{INTERPOLATE_SPEED[i]}_"
                     return_mean = np.mean(single_env_return_list)
                     win_rate_mean = np.mean(single_env_win_rate_list)
@@ -369,7 +373,7 @@ def run_sequential(args, logger):
 
                         # dict_keys(['dead_allies', 'dead_enemies', 'battle_won', 'n_episodes', 'ep_length', 'epsilon', 'return_mean', 'return_std', 'returns'])
                         single_env_return_list.append(statistics["returns"])
-                        single_env_win_rate_list.append(statistics["battle_won"])
+                        single_env_win_rate_list.append(statistics.get("battle_won", 0))
                     prefix = f"single_env/speed_{EXTRAPOLATE_SPEED[i]}_"
                     return_mean = np.mean(single_env_return_list)
                     win_rate_mean = np.mean(single_env_win_rate_list)
