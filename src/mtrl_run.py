@@ -306,7 +306,7 @@ def run_sequential(args, logger):
                 win_rate_mean = np.mean(single_env_win_rate_list)
                 single_env_stat = {
                     f"{prefix}return_mean": return_mean,
-                    f"{prefix}battle_won": np.mean(win_rate_mean)
+                    f"{prefix}battle_won": win_rate_mean
                 }
                 wandb_run.log(single_env_stat, last_test_T)
                 multi_env_return_list.append(return_mean)
@@ -334,13 +334,13 @@ def run_sequential(args, logger):
 
                         # dict_keys(['dead_allies', 'dead_enemies', 'battle_won', 'n_episodes', 'ep_length', 'epsilon', 'return_mean', 'return_std', 'returns'])
                         single_env_return_list.append(statistics["returns"])
-                        single_env_win_rate_list.append(statistics["battle_won"] / statistics["n_episodes"])
+                        single_env_win_rate_list.append(statistics["battle_won"])
                     prefix = f"single_env/speed_{INTERPOLATE_SPEED[i]}_"
                     return_mean = np.mean(single_env_return_list)
                     win_rate_mean = np.mean(single_env_win_rate_list)
                     single_env_stat = {
                         f"{prefix}return_mean": return_mean,
-                        f"{prefix}battle_won": np.mean(win_rate_mean)
+                        f"{prefix}battle_won": win_rate_mean
                     }
                     wandb_run.log(single_env_stat, last_test_T)
                     multi_env_return_list.append(return_mean)
@@ -369,13 +369,13 @@ def run_sequential(args, logger):
 
                         # dict_keys(['dead_allies', 'dead_enemies', 'battle_won', 'n_episodes', 'ep_length', 'epsilon', 'return_mean', 'return_std', 'returns'])
                         single_env_return_list.append(statistics["returns"])
-                        single_env_win_rate_list.append(statistics["battle_won"] / statistics["n_episodes"])
+                        single_env_win_rate_list.append(statistics["battle_won"])
                     prefix = f"single_env/speed_{EXTRAPOLATE_SPEED[i]}_"
                     return_mean = np.mean(single_env_return_list)
                     win_rate_mean = np.mean(single_env_win_rate_list)
                     single_env_stat = {
                         f"{prefix}return_mean": return_mean,
-                        f"{prefix}battle_won": np.mean(win_rate_mean)
+                        f"{prefix}battle_won": win_rate_mean
                     }
                     wandb_run.log(single_env_stat, last_test_T)
                     multi_env_return_list.append(return_mean)
