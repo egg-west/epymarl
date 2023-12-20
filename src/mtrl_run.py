@@ -299,7 +299,7 @@ def run_sequential(args, logger):
                 for _ in range(n_test_runs):
                     _, statistics = test_runner.run(test_mode=True, task_embedding=task_embedding)
                     # dict_keys(['dead_allies', 'dead_enemies', 'battle_won', 'n_episodes', 'ep_length', 'epsilon', 'return_mean', 'return_std', 'returns'])
-                    single_env_return_list.extend(statistics["returns"])
+                    single_env_return_list.append(statistics["returns"])
                     single_env_win_rate_list.append(statistics["battle_won"])
                 prefix = f"single_env/speed_{TRAIN_SPEED[i]}_"
                 return_mean = np.mean(single_env_return_list)
