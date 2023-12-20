@@ -10,7 +10,7 @@ import torch as th
 # https://github.com/openai/baselines/blob/master/baselines/common/vec_env/subproc_vec_env.py
 class ParallelRunner:
 
-    def __init__(self, args, logger):
+    def __init__(self, args, logger, wandb_logger=None):
         self.args = args
         self.logger = logger
         self.batch_size = self.args.batch_size_run

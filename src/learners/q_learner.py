@@ -8,10 +8,11 @@ from components.standarize_stream import RunningMeanStd
 
 
 class QLearner:
-    def __init__(self, mac, scheme, logger, args):
+    def __init__(self, mac, scheme, logger, args, wandb_logger):
         self.args = args
         self.mac = mac
         self.logger = logger
+        self.wandb_logger = wandb_logger
 
         self.params = list(mac.parameters())
         self.last_target_update_episode = 0
@@ -128,9 +129,17 @@ class QLearner:
             self._update_targets_soft(self.args.target_update_interval_or_tau)
 
         if t_env - self.log_stats_t >= self.args.learner_log_interval:
-            self.logger.log_stat("loss", loss.item(), t_env)
-            self.logger.log_stat("grad_norm", grad_norm.item(), t_env)
             mask_elems = mask.sum().item()
+            train_stats = {}
+            train_stats["train/loss"] = loss.item()
+            train_stats["train/grad_norm"] = grad_norm.item()
+            train_stats["train/td_error_abs"] = masked_td_error.abs().sum().item() / mask_elems
+            train_stats["train/q_taken_mean"] = (chosen_action_qvals * mask).sum().item() / (mask_elems * self.args.n_agents)
+            train_stats["train/target_mean"] = (targets * mask).sum().item()/(mask_elems * self.args.n_agents)
+            self.wandb_logger.log(train_stats, t_env)
+
+            self.logger.log_stat("loss", loss.item(), t_env)    
+            self.logger.log_stat("grad_norm", grad_norm.item(), t_env)
             self.logger.log_stat("td_error_abs", (masked_td_error.abs().sum().item()/mask_elems), t_env)
             self.logger.log_stat("q_taken_mean", (chosen_action_qvals * mask).sum().item()/(mask_elems * self.args.n_agents), t_env)
             self.logger.log_stat("target_mean", (targets * mask).sum().item()/(mask_elems * self.args.n_agents), t_env)

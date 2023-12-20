@@ -15,7 +15,7 @@ from sacred.utils import apply_backspaces_and_linefeeds
 from utils.logging import get_logger
 
 
-from run import run
+from mtrl_run import run
 
 SETTINGS['CAPTURE_MODE'] = "fd" # set to "no" if you want to see stdout/stderr in console
 logger = get_logger()
@@ -101,7 +101,7 @@ if __name__ == '__main__':
     # Load algorithm and env base configs
     env_config = _get_config(params, "--env-config", "envs")
     alg_config = _get_config(params, "--config", "algs")
-    #env_config = _get_config(FLAGS.env_config, "envs")
+    # env_config = _get_config(FLAGS.env_config, "envs")
     # alg_config = _get_config(FLAGS.config, "algs")
     # config_dict = {**config_dict, **env_config, **alg_config}
     config_dict = recursive_dict_update(config_dict, env_config)

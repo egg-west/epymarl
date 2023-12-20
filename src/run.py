@@ -3,6 +3,7 @@ import os
 import pprint
 import time
 import threading
+import wandb
 import torch as th
 from types import SimpleNamespace as SN
 from utils.logging import Logger
@@ -82,9 +83,16 @@ def evaluate_sequential(args, runner):
 
 
 def run_sequential(args, logger):
+    print(f"{args=}")
+    wandb_run = wandb.init(
+        project=f"pyMARL_{args.learner}",
+        group=f'{args.env_args["map_name"]}',
+        name=f'{args.seed}',
+        #mode="offline"
+    )
 
     # Init runner so we can get env info
-    runner = r_REGISTRY[args.runner](args=args, logger=logger)
+    runner = r_REGISTRY[args.runner](args=args, logger=logger, wandb_logger=wandb_run)
 
     # Set up schemes and groups here
     env_info = runner.get_env_info()
@@ -124,7 +132,7 @@ def run_sequential(args, logger):
     runner.setup(scheme=scheme, groups=groups, preprocess=preprocess, mac=mac)
 
     # Learner
-    learner = le_REGISTRY[args.learner](mac, buffer.scheme, logger, args)
+    learner = le_REGISTRY[args.learner](mac, buffer.scheme, logger, args, wandb_run)
 
     if args.use_cuda:
         learner.cuda()
