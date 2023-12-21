@@ -46,7 +46,7 @@ observation_embedding_dim: 64
 # independent task encoder for state abstraction
 test_extrapolate: True
 test_interpolate: True
-n_train_tasks: 4
+n_train_tasks: 3
 is_debug: False
 
 name: "qmix"

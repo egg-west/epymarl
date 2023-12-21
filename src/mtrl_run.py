@@ -103,7 +103,7 @@ def run_sequential(args, logger):
     wandb_run = wandb.init(
         project=f"pyMARL_{args.learner}",
         #group=f'{args.env_args["map_name"]}',
-        group=f'{group_name_prefix}-{args.env_args["map_name"]}',
+        group=f'{group_name_prefix}-235-{args.env_args["map_name"]}',
         name=f'{args.seed}',
         #mode="offline"
     )
@@ -118,12 +118,18 @@ def run_sequential(args, logger):
         EXTRAPOLATE_SPEED = [1]
         EXTRAPOLATE_TASK_ID = [1]
     else:
-        SPEED_LIST = [0.6, 1.0, 1.4, 1.8, 2.2, 2.6, 3.0, 3.4]
-        TRAIN_SPEED = [1.0, 1.4, 2.2, 3.0]
-        INTERPOLATE_TASK_ID = [1, 2]
-        EXTRAPOLATE_TASK_ID = [0, 3]
-        INTERPOLATE_SPEED = [1.8, 2.6]
-        EXTRAPOLATE_SPEED = [0.6, 3.4]
+        # SPEED_LIST = [0.6, 1.0, 1.4, 1.8, 2.2, 2.6, 3.0, 3.4]
+        # TRAIN_SPEED = [1.0, 1.4, 2.2, 3.0]
+        # INTERPOLATE_TASK_ID = [1, 2]
+        # EXTRAPOLATE_TASK_ID = [0, 3]
+        # INTERPOLATE_SPEED = [1.8, 2.6]
+        # EXTRAPOLATE_SPEED = [0.6, 3.4]
+        SPEED_LIST = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+        TRAIN_SPEED = [2.0, 3.0, 5.0]
+        INTERPOLATE_TASK_ID = [1]
+        EXTRAPOLATE_TASK_ID = [0, 2]
+        INTERPOLATE_SPEED = [4.0]
+        EXTRAPOLATE_SPEED = [1.0, 6.0]
 
     train_runner_list = [r_REGISTRY["mtrl"](args=modify_env_config(args, "move_amount", TRAIN_SPEED[i]), logger=logger, wandb_logger=wandb_run, env_id=i) \
         for i in range(len(TRAIN_SPEED))]
