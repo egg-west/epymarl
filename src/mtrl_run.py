@@ -101,9 +101,9 @@ def run_sequential(args, logger):
             else:
                 group_name_prefix = "SA"
     wandb_run = wandb.init(
-        project=f"pyMARL_{args.learner}",
+        project=f"pyMARL_attack_range_{args.learner}",
         #group=f'{args.env_args["map_name"]}',
-        group=f'{group_name_prefix}-235-{args.env_args["map_name"]}',
+        group=f'{group_name_prefix}-610-{args.env_args["map_name"]}',
         name=f'{args.seed}',
         #mode="offline"
     )
@@ -124,21 +124,35 @@ def run_sequential(args, logger):
         # EXTRAPOLATE_TASK_ID = [0, 3]
         # INTERPOLATE_SPEED = [1.8, 2.6]
         # EXTRAPOLATE_SPEED = [0.6, 3.4]
-        SPEED_LIST = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
-        TRAIN_SPEED = [2.0, 3.0, 5.0]
-        INTERPOLATE_TASK_ID = [1]
-        EXTRAPOLATE_TASK_ID = [0, 2]
-        INTERPOLATE_SPEED = [4.0]
-        EXTRAPOLATE_SPEED = [1.0, 6.0]
+        # SPEED_LIST = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+        # TRAIN_SPEED = [2.0, 3.0, 5.0]
+        # INTERPOLATE_TASK_ID = [1]
+        # EXTRAPOLATE_TASK_ID = [0, 2]
+        # INTERPOLATE_SPEED = [4.0]
+        # EXTRAPOLATE_SPEED = [1.0, 6.0]
+        SHOOT_RANGE_LIST = [4.0, 6.0, 8.0, 10.0, 12.0]
+        TRAIN_SHOOT_RANGE = [6.0, 10.0]
+        INTERPOLATE_TASK_ID = [0]
+        EXTRAPOLATE_TASK_ID = [0, 1]
+        INTERPOLATE_SHOOT_RANGE = [8.0]
+        EXTRAPOLATE_SHOOT_RANGE = [4.0, 12.0]
 
-    train_runner_list = [r_REGISTRY["mtrl"](args=modify_env_config(args, "move_amount", TRAIN_SPEED[i]), logger=logger, wandb_logger=wandb_run, env_id=i) \
-        for i in range(len(TRAIN_SPEED))]
+    # train_runner_list = [r_REGISTRY["mtrl"](args=modify_env_config(args, "move_amount", TRAIN_SPEED[i]), logger=logger, wandb_logger=wandb_run, env_id=i) \
+    #     for i in range(len(TRAIN_SPEED))]
+    # if args.test_interpolate:
+    #     interpolate_runner_list = [r_REGISTRY["mtrl"](args=modify_env_config(args, "move_amount", INTERPOLATE_SPEED[i]), logger=logger, wandb_logger=wandb_run, env_id=INTERPOLATE_TASK_ID[i]) \
+    #         for i in range(len(INTERPOLATE_SPEED))]
+    # if args.test_extrapolate:
+    #     extrapolate_runner_list = [r_REGISTRY["mtrl"](args=modify_env_config(args, "move_amount", EXTRAPOLATE_SPEED[i]), logger=logger, wandb_logger=wandb_run, env_id=EXTRAPOLATE_TASK_ID[i]) \
+    #         for i in range(len(EXTRAPOLATE_SPEED))]
+    train_runner_list = [r_REGISTRY["mtrl"](args=modify_env_config(args, "shoot_range", TRAIN_SHOOT_RANGE[i]), logger=logger, wandb_logger=wandb_run, env_id=i) \
+        for i in range(len(TRAIN_SHOOT_RANGE))]
     if args.test_interpolate:
-        interpolate_runner_list = [r_REGISTRY["mtrl"](args=modify_env_config(args, "move_amount", INTERPOLATE_SPEED[i]), logger=logger, wandb_logger=wandb_run, env_id=INTERPOLATE_TASK_ID[i]) \
-            for i in range(len(INTERPOLATE_SPEED))]
+        interpolate_runner_list = [r_REGISTRY["mtrl"](args=modify_env_config(args, "shoot_range", INTERPOLATE_SHOOT_RANGE[i]), logger=logger, wandb_logger=wandb_run, env_id=INTERPOLATE_TASK_ID[i]) \
+            for i in range(len(INTERPOLATE_SHOOT_RANGE))]
     if args.test_extrapolate:
-        extrapolate_runner_list = [r_REGISTRY["mtrl"](args=modify_env_config(args, "move_amount", EXTRAPOLATE_SPEED[i]), logger=logger, wandb_logger=wandb_run, env_id=EXTRAPOLATE_TASK_ID[i]) \
-            for i in range(len(EXTRAPOLATE_SPEED))]
+        extrapolate_runner_list = [r_REGISTRY["mtrl"](args=modify_env_config(args, "shoot_range", EXTRAPOLATE_SHOOT_RANGE[i]), logger=logger, wandb_logger=wandb_run, env_id=EXTRAPOLATE_TASK_ID[i]) \
+            for i in range(len(EXTRAPOLATE_SHOOT_RANGE))]
 
     runner_step = [0 for _ in range(len(train_runner_list))]
 
@@ -309,7 +323,8 @@ def run_sequential(args, logger):
                     #if not "battle_won" in statistics:
                     #    print(f"{statistics=}") # statistics={'returns': 7.607843137254902}
                     single_env_win_rate_list.append(statistics.get("battle_won", 0))
-                prefix = f"single_env/speed_{TRAIN_SPEED[i]}_"
+                #prefix = f"single_env/speed_{TRAIN_SPEED[i]}_"
+                prefix = f"single_env/speed_{TRAIN_SHOOT_RANGE[i]}_"
                 return_mean = np.mean(single_env_return_list)
                 win_rate_mean = np.mean(single_env_win_rate_list)
                 single_env_stat = {
@@ -345,7 +360,8 @@ def run_sequential(args, logger):
                         # if not "battle_won" in statistics:
                         #     print(f"{statistics=}")
                         single_env_win_rate_list.append(statistics.get("battle_won", 0))
-                    prefix = f"single_env/speed_{INTERPOLATE_SPEED[i]}_"
+                    #prefix = f"single_env/speed_{INTERPOLATE_SPEED[i]}_"
+                    prefix = f"single_env/speed_{INTERPOLATE_SHOOT_RANGE[i]}_"
                     return_mean = np.mean(single_env_return_list)
                     win_rate_mean = np.mean(single_env_win_rate_list)
                     single_env_stat = {
@@ -380,7 +396,8 @@ def run_sequential(args, logger):
                         # dict_keys(['dead_allies', 'dead_enemies', 'battle_won', 'n_episodes', 'ep_length', 'epsilon', 'return_mean', 'return_std', 'returns'])
                         single_env_return_list.append(statistics["returns"])
                         single_env_win_rate_list.append(statistics.get("battle_won", 0))
-                    prefix = f"single_env/speed_{EXTRAPOLATE_SPEED[i]}_"
+                    #prefix = f"single_env/speed_{EXTRAPOLATE_SPEED[i]}_"
+                    prefix = f"single_env/speed_{EXTRAPOLATE_SHOOT_RANGE[i]}_"
                     return_mean = np.mean(single_env_return_list)
                     win_rate_mean = np.mean(single_env_win_rate_list)
                     single_env_stat = {

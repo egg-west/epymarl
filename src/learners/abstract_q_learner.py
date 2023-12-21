@@ -114,14 +114,16 @@ class AbstractQLearner:
             self.FM_optimiser.zero_grad()
             fm_loss.backward()
             self.FM_optimiser.step()
+            self.wandb_logger.log({"SA/fm_loss":fm_loss.item()}, t_env)
 
             random_bias = torch.LongTensor(
                 np.random.randint(low=1, high=self.args.n_train_tasks, size=batch_task_indicies.shape[0]) 
             ).to(self.args.device).unsqueeze(-1).tile((1, batch_task_indicies.shape[1])).unsqueeze(-1)
             #print(f'{random_bias.shape=}')
+            #random_bias.shape=torch.Size([32]), batch["task_indices_global"].shape=torch.Size([32, 51, 1]), random_task_indicies.shape=torch.Size([32, 51, 32])
+
             random_task_indicies = (batch_task_indicies + random_bias) % self.args.n_train_tasks# every element of bias is in [1, n_tasks)
             # print(f'{batch["task_indices_global"].shape=}, {random_task_indicies.shape=}') # [32, 74, 1]
-            #random_bias.shape=torch.Size([32]), batch["task_indices_global"].shape=torch.Size([32, 51, 1]), random_task_indicies.shape=torch.Size([32, 51, 32])
             
             random_task_embedding = self.task_encoder(random_task_indicies).reshape([-1, self.args.task_embedding_dim])
             with torch.no_grad():
@@ -163,12 +165,15 @@ class AbstractQLearner:
                 
                 #print(f'{random_task_embedding.shape=}') # [2368, 64]
                 
-                te_diff = torch.norm(task_embedding - random_task_embedding)
-                next_state_diff = torch.norm(predicted_next_state.detach() - random_task_predicted_next_state)
+                # te_diff = torch.norm(task_embedding - random_task_embedding)
+                # next_state_diff = torch.norm(predicted_next_state.detach() - random_task_predicted_next_state)
+                te_diff = torch.norm(task_embedding - random_task_embedding, dim=1)
+                next_state_diff = torch.norm(predicted_next_state.detach() - random_task_predicted_next_state, dim=1)
             self.TE_optimiser.zero_grad()
             te_loss = F.mse_loss(te_diff, next_state_diff)
             te_loss.backward()
             self.TE_optimiser.step()
+            self.wandb_logger.log({"SA/te_loss":te_loss.item()}, t_env)
 
             if self.args.use_agent_encoder:
                 pass
@@ -319,7 +324,7 @@ class AbstractQLearner:
             train_stats["train/target_mean"] = (targets * mask).sum().item()/(mask_elems * self.args.n_agents)
             self.wandb_logger.log(train_stats, t_env)
 
-            self.logger.log_stat("loss", loss.item(), t_env)    
+            self.logger.log_stat("loss", loss.item(), t_env)
             self.logger.log_stat("grad_norm", grad_norm.item(), t_env)
             self.logger.log_stat("td_error_abs", (masked_td_error.abs().sum().item()/mask_elems), t_env)
             self.logger.log_stat("q_taken_mean", (chosen_action_qvals * mask).sum().item()/(mask_elems * self.args.n_agents), t_env)
