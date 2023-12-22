@@ -134,9 +134,15 @@ class AbstractQLearner:
             next_state_diff = None
             if self.args.optimal_transport_loss:
                 #print(f"{batch_task_indicies[:, 0, :].shape=}")
+                # [bs, task_embedding_dim]
                 task_embedding = self.task_encoder(batch_task_indicies[:, 0, :].squeeze(1))
                 random_task_embedding = self.task_encoder(random_task_indicies[:, 0, :].squeeze(1))
-                #print(f"{task_embedding.shape=}, {random_task_embedding.shape=}")
+                print(f"{task_embedding.shape=}, {random_task_embedding.shape=}")
+
+                fm_inputs = torch.cat([h.detach(), joint_actions, task_embedding.unsqueeze(1).tile(1, seq_len)], dim=1)
+                predicted_next_state, sigma = self.forward_model(fm_inputs)
+                diff = (predicted_next_state - next_h.detach()) / sigma
+                fm_loss = torch.mean(0.5 * diff.pow(2) + torch.log(sigma))
 
                 coupling_matrix_list = []
                 cost_matrix = torch.sqrt(
@@ -161,6 +167,7 @@ class AbstractQLearner:
                 te_diff = torch.norm(task_embedding - random_task_embedding, dim=1)
                 next_state_diff = torch.stack(dis_list)
                 te_loss = F.mse_loss(te_diff, next_state_diff)
+                te_loss += fm_loss
                 #print(f"{te_diff.shape=}, {next_state_diff.shape=}")
             else:
                 # [2368, 64]
