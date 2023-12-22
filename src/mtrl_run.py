@@ -103,7 +103,7 @@ def run_sequential(args, logger):
     wandb_run = wandb.init(
         project=f"pyMARL_attack_range_{args.learner}",
         #group=f'{args.env_args["map_name"]}',
-        group=f'{group_name_prefix}-610-{args.env_args["map_name"]}',
+        group=f'{group_name_prefix}-68910-{args.env_args["map_name"]}',
         name=f'{args.seed}',
         #mode="offline"
     )
@@ -130,12 +130,12 @@ def run_sequential(args, logger):
         # EXTRAPOLATE_TASK_ID = [0, 2]
         # INTERPOLATE_SPEED = [4.0]
         # EXTRAPOLATE_SPEED = [1.0, 6.0]
-        SHOOT_RANGE_LIST = [4.0, 6.0, 8.0, 10.0, 12.0]
-        TRAIN_SHOOT_RANGE = [6.0, 10.0]
+        SHOOT_RANGE_LIST = [4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
+        TRAIN_SHOOT_RANGE = [6.0, 8.0, 9.0, 10.0]
         INTERPOLATE_TASK_ID = [0]
-        EXTRAPOLATE_TASK_ID = [0, 1]
-        INTERPOLATE_SHOOT_RANGE = [8.0]
-        EXTRAPOLATE_SHOOT_RANGE = [4.0, 12.0]
+        EXTRAPOLATE_TASK_ID = [0, 0, 3, 3]
+        INTERPOLATE_SHOOT_RANGE = [7.0]
+        EXTRAPOLATE_SHOOT_RANGE = [4.0, 5.0, 11.0, 12.0]
 
     # train_runner_list = [r_REGISTRY["mtrl"](args=modify_env_config(args, "move_amount", TRAIN_SPEED[i]), logger=logger, wandb_logger=wandb_run, env_id=i) \
     #     for i in range(len(TRAIN_SPEED))]
