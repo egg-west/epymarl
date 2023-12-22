@@ -87,7 +87,7 @@ class AbstractQLearner:
         bs = batch.batch_size
         seq_len = int(batch["task_indices_global"].shape[1] - 1)
         if self.args.use_task_encoder and self.args.independent_task_encoder:
-            ####################### Update the forward model and task encoder
+            ####################### Update the forward model
             batch_task_indicies = batch["task_indices_global"][:, :-1]
             with torch.no_grad():
                 task_embedding = self.task_encoder(batch_task_indicies).reshape([-1, self.args.task_embedding_dim])
@@ -116,6 +116,7 @@ class AbstractQLearner:
             self.FM_optimiser.step()
             self.wandb_logger.log({"SA/fm_loss":fm_loss.item()}, t_env)
 
+            ####################### Update the task encoder
             random_bias = torch.LongTensor(
                 np.random.randint(low=1, high=self.args.n_train_tasks, size=batch_task_indicies.shape[0]) 
             ).to(self.args.device).unsqueeze(-1).tile((1, batch_task_indicies.shape[1])).unsqueeze(-1)
@@ -159,18 +160,24 @@ class AbstractQLearner:
 
                 te_diff = torch.norm(task_embedding - random_task_embedding, dim=1)
                 next_state_diff = torch.stack(dis_list)
+                te_loss = F.mse_loss(te_diff, next_state_diff)
                 #print(f"{te_diff.shape=}, {next_state_diff.shape=}")
             else:
+                # [2368, 64]
                 task_embedding = self.task_encoder(batch_task_indicies).reshape([-1, self.args.task_embedding_dim])
-                
-                #print(f'{random_task_embedding.shape=}') # [2368, 64]
                 
                 # te_diff = torch.norm(task_embedding - random_task_embedding)
                 # next_state_diff = torch.norm(predicted_next_state.detach() - random_task_predicted_next_state)
+                fm_inputs = torch.cat([h.detach(), joint_actions, task_embedding], dim=1)
                 te_diff = torch.norm(task_embedding - random_task_embedding, dim=1)
+
+                predicted_next_state, sigma = self.forward_model(fm_inputs)
                 next_state_diff = torch.norm(predicted_next_state.detach() - random_task_predicted_next_state, dim=1)
+                diff = (predicted_next_state - next_h.detach()) / sigma
+                fm_loss = torch.mean(0.5 * diff.pow(2) + torch.log(sigma))
+                te_loss = F.mse_loss(te_diff, next_state_diff)
+                te_loss += fm_loss
             self.TE_optimiser.zero_grad()
-            te_loss = F.mse_loss(te_diff, next_state_diff)
             te_loss.backward()
             self.TE_optimiser.step()
             self.wandb_logger.log({"SA/te_loss":te_loss.item()}, t_env)
