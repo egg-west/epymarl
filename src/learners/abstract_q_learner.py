@@ -47,7 +47,7 @@ class AbstractQLearner:
                 args.state_embedding_dim,
                 args.task_embedding_dim,
                 [joint_action_dim],
-                256
+                args.fm_hidden_dim,
             ).to(args.device)
             self.FM_optimiser = Adam(params=self.forward_model.parameters(), lr=args.lr)
             self.task_encoder = BaseTaskEncoder(self.args.num_embeddings, self.args.task_embedding_dim).to(args.device)
@@ -56,13 +56,15 @@ class AbstractQLearner:
             if args.use_agent_encoder:
                 self.agent_forward_model = ProbabilisticForwardModel(
                     args.observation_embedding_dim,
-                    args.agent_embedding_dim,
+                    args.task_embedding_dim + args.agent_embedding_dim,
                     [int(args.n_actions)],
                     256
                 ).to(args.device)
                 self.AFM_optimiser = Adam(params=self.agent_forward_model.parameters(), lr=args.lr)
-                self.agent_encoder = BaseTaskEncoder(self.args.n_agents, self.args.agent_embedding_dim).to(args.device)
+                self.agent_encoder = BaseTaskEncoder(self.args.n_agents + 3, self.args.agent_embedding_dim).to(args.device)
                 self.AE_optimiser = Adam(params=self.agent_encoder.parameters(), lr=args.lr)
+                
+                self.agent_indices = torch.arange(args.n_agents).to(args.device)
 
         # a little wasteful to deepcopy (e.g. duplicates action selector), but should work for any MAC
         self.target_mac = copy.deepcopy(mac)
@@ -130,7 +132,7 @@ class AbstractQLearner:
             with torch.no_grad():
                 random_task_fm_inputs = torch.cat([h.detach(), joint_actions, random_task_embedding], dim=1)
                 random_task_predicted_next_state, sigma = self.forward_model(random_task_fm_inputs,)
-            
+
             next_state_diff = None
             if self.args.optimal_transport_loss:
                 #print(f"{batch_task_indicies[:, 0, :].shape=}")
@@ -193,28 +195,61 @@ class AbstractQLearner:
             self.wandb_logger.log({"SA/te_loss":te_loss.item()}, t_env)
 
             if self.args.use_agent_encoder:
-                pass
-                agent_indices = th.eye(self.args.n_agents, device=batch.device).unsqueeze(0).expand(batch.batch_size, -1, -1)
-                agent_embedding = None
-                agent_action = None
-                observations = self.agent.observation_encode(observations)
-                predicted_next_observations, sigma = self.agent_forward_model(task_embedding, agent_embedding, observations, agent_action)
-                next_h = self.agent.observation_encode(next_observations)
+                with torch.no_grad():
+                    task_embedding = self.task_encoder(batch["task_indices"][:, :-1]).squeeze(-2).reshape([bs*seq_len, self.args.n_agents, -1])
+                #print(f"for agent encoder: {task_embedding.shape=}")
+                agent_indices = self.agent_indices.unsqueeze(0).unsqueeze(0).tile([bs, seq_len, 1])
+                #print(f"{agent_indices.shape=}") # expect [32, seq_len, 8] # [32, 68, 8]
+                agent_embedding = self.agent_encoder(agent_indices).reshape(-1, self.args.n_agents, self.args.agent_embedding_dim)
+                #print(f"{agent_embedding.shape=}") # expect [32 * seq_len, 8, 64] # [2176, 8, 64]
+                onehot_actions = F.one_hot(batch["actions"][:, :-1]).squeeze(-2).to(batch.device) # [32, 66, 8, 14]
+                agent_action = onehot_actions.reshape((-1, self.args.n_agents, self.args.n_actions)) # [2176, 8, 14]
+                h = self.mac.observation_encode(batch["obs"][:, :-1]).reshape(bs*seq_len, self.args.n_agents, self.args.observation_embedding_dim)
+                #print(f"{h.shape=}") # [32*68, 8, 64]
+                afm_inputs = torch.cat([task_embedding, agent_embedding.detach(), h, agent_action], dim=2)
+                #print(f"{afm_inputs.shape=}") # 2176, 8, 206
+                predicted_next_observations, sigma = self.agent_forward_model(afm_inputs.detach())
+                # print(f"{predicted_next_observations.shape=}") # [2176, 8, 64]
+                next_h = self.mac.observation_encode(batch["obs"][:, 1:]).reshape(bs*seq_len, self.args.n_agents, self.args.observation_embedding_dim)
                 diff = (predicted_next_observations - next_h.detach()) / sigma
                 afm_loss = torch.mean(0.5 * diff.pow(2) + torch.log(sigma))
 
                 self.AFM_optimiser.zero_grad()
                 afm_loss.backward()
                 self.AFM_optimiser.step()
+                self.wandb_logger.log({"SA/afm_loss":afm_loss.item()}, t_env)
+
                 #################################### update the agent embedding
-                random_agent_indices = None
-                random_agent_predicted_next_observation = None
-                ae_diff = torch.norm(agent_embedding - random_agent_embedding)
-                next_observation_diff = torch.norm(predicted_next_state.detach() - random_task_predicted_next_state)
+                TEST_SEQ_LEN = 10
+                TEST_SAMPLE_NUMBER = 10
+                random_agent_indices_bias = torch.LongTensor(np.random.randint(low=1, high=self.args.n_agents, size=self.args.n_agents)).to(batch.device)
+                # print(f"{self.agent_indices.shape=}, {random_agent_indices_bias.shape=}")# [8]
+                random_agent_indices = (self.agent_indices + random_agent_indices_bias).unsqueeze(0).unsqueeze(0).tile([bs, seq_len, 1]) % self.args.n_agents
+                #print(f"{random_agent_indices.shape=}") [32, 68, 8]
+                random_agent_embedding = self.agent_encoder(random_agent_indices).reshape(-1, self.args.n_agents, self.args.agent_embedding_dim)
+
+                #print(f"{random_agent_embedding.shape=}") # [2176, 8, 64]
+                random_afm_inputs = torch.cat([task_embedding, random_agent_embedding, h.detach(), agent_action], dim=2)[:TEST_SAMPLE_NUMBER]
+                #print(f"{random_afm_inputs.shape=}") # [2176, 8, 206]
+                random_agent_predicted_next_observation, sigma = self.agent_forward_model(random_afm_inputs)
+                #print(f"{random_agent_predicted_next_observation.shape=}") # [2176, 8, 64]
+                afm_inputs = torch.cat([task_embedding, agent_embedding, h.detach(), agent_action], dim=2)[:TEST_SAMPLE_NUMBER]
+                new_predicted_next_observations, sigma = self.agent_forward_model(afm_inputs)
+                #diff = (new_predicted_next_observations - next_h.detach()) / sigma
+                #afm_loss = torch.mean(0.5 * diff.pow(2) + torch.log(sigma))
+
+                ae_diff = torch.norm(agent_embedding.reshape(-1, agent_embedding.shape[-1])[:TEST_SAMPLE_NUMBER] - random_agent_embedding.reshape(-1, random_agent_embedding.shape[-1])[:TEST_SAMPLE_NUMBER], dim=1)
+                next_observation_diff = torch.norm(
+                    new_predicted_next_observations.reshape(-1, new_predicted_next_observations.shape[-1])[:TEST_SAMPLE_NUMBER] - random_agent_predicted_next_observation.reshape(-1, random_agent_predicted_next_observation.shape[-1])[:TEST_SAMPLE_NUMBER],
+                    dim=1
+                )
                 self.AE_optimiser.zero_grad()
-                te_loss = F.mse_loss(ae_diff, next_observation_diff)
-                te_loss.backward()
+                #ae_loss = F.mse_loss(ae_diff, next_observation_diff) + afm_loss
+                #ae_loss = F.mse_loss(ae_diff, next_observation_diff.detach())
+                ae_loss = F.mse_loss(ae_diff, next_observation_diff.detach())
+                ae_loss.backward()
                 self.AE_optimiser.step()
+                self.wandb_logger.log({"SA/ae_loss":ae_loss.item()}, t_env)
 
         ####################### Update the agent
 
@@ -237,9 +272,17 @@ class AbstractQLearner:
         if self.args.independent_task_encoder:
             with torch.no_grad():
                 task_embedding = self.task_encoder(task_indices).squeeze(-2)
-            for t in range(batch.max_seq_length):
-                agent_outs = self.mac.forward(batch, t=t, task_embedding=task_embedding)
-                mac_out.append(agent_outs)
+            if self.args.use_agent_encoder:
+                agent_embedding = self.agent_encoder(self.agent_indices).unsqueeze(0).tile([bs, 1, 1])
+                # print(f"{agent_embedding.shape}")# [8, 64]
+                #print(f"{agent_embedding.shape=}") # torch.Size([32, 8, 64])
+                for t in range(batch.max_seq_length):
+                    agent_outs = self.mac.forward(batch, t=t, task_embedding=task_embedding, agent_embedding=agent_embedding)
+                    mac_out.append(agent_outs)
+            else:
+                for t in range(batch.max_seq_length):
+                    agent_outs = self.mac.forward(batch, t=t, task_embedding=task_embedding)
+                    mac_out.append(agent_outs)
         else:
             for t in range(batch.max_seq_length):
                 agent_outs = self.mac.forward(batch, t=t)
@@ -252,9 +295,15 @@ class AbstractQLearner:
         target_mac_out = []
         self.target_mac.init_hidden(batch.batch_size)
         if self.args.independent_task_encoder:
-            for t in range(batch.max_seq_length):
-                target_agent_outs = self.target_mac.forward(batch, t=t, task_embedding=task_embedding)
-                target_mac_out.append(target_agent_outs)
+            if self.args.use_agent_encoder:
+                agent_embedding = self.agent_encoder(self.agent_indices).unsqueeze(0).tile([bs, 1, 1])
+                for t in range(batch.max_seq_length):
+                    target_agent_outs = self.target_mac.forward(batch, t=t, task_embedding=task_embedding, agent_embedding=agent_embedding)
+                    target_mac_out.append(target_agent_outs)
+            else:
+                for t in range(batch.max_seq_length):
+                    target_agent_outs = self.target_mac.forward(batch, t=t, task_embedding=task_embedding)
+                    target_mac_out.append(target_agent_outs)
         else:
             for t in range(batch.max_seq_length):
                 target_agent_outs = self.target_mac.forward(batch, t=t)
@@ -352,6 +401,9 @@ class AbstractQLearner:
     def get_task_embedding(self, task_id):
         task_id = torch.LongTensor([task_id]).to(self.args.device)
         return self.task_encoder(task_id)
+    
+    def get_agent_embedding(self):
+        return self.agent_encoder(self.agent_indices)
 
     def _update_targets_hard(self):
         self.target_mac.load_state(self.mac)

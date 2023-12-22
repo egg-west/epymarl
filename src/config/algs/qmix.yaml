@@ -37,16 +37,17 @@ hypernet_embed: 64
 use_task_encoder: True          # In MTL, this should be set to True
 independent_task_encoder: True # if False, task embedding is learned by the critic
 optimal_transport_loss: False   # use optimal transport loss on trajectories instead of wasserstein between state transitions
-use_agent_encoder: False
+use_agent_encoder: True
 num_embeddings: 10
 task_embedding_dim: 64
 agent_embedding_dim: 64
 state_embedding_dim: 128
 observation_embedding_dim: 64
+fm_hidden_dim: 256
 # independent task encoder for state abstraction
-test_extrapolate: True
-test_interpolate: True
-n_train_tasks: 4
-is_debug: False
+test_extrapolate: False
+test_interpolate: False
+n_train_tasks: 2 #4
+is_debug: True
 
 name: "qmix"

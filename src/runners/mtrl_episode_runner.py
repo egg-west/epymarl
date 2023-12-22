@@ -51,7 +51,7 @@ class MTRLRunner:
         self.env.reset()
         self.t = 0
 
-    def run(self, test_mode=False, task_embedding=None):
+    def run(self, test_mode=False, task_embedding=None, agent_embedding=None):
         self.reset()
 
         terminated = False
@@ -75,7 +75,7 @@ class MTRLRunner:
             # Pass the entire batch of experiences up till now to the agents
             # Receive the actions for each agent at this timestep in a batch of size 1
             if self.args.independent_task_encoder:
-                actions = self.mac.select_actions(self.batch, t_ep=self.t, t_env=self.t_env, test_mode=test_mode, task_embedding=task_embedding)
+                actions = self.mac.select_actions(self.batch, t_ep=self.t, t_env=self.t_env, test_mode=test_mode, task_embedding=task_embedding, agent_embedding=agent_embedding)
             else:
                 actions = self.mac.select_actions(self.batch, t_ep=self.t, t_env=self.t_env, test_mode=test_mode)
 
@@ -107,7 +107,7 @@ class MTRLRunner:
 
         # Select actions in the last stored state
         if self.args.independent_task_encoder:
-            actions = self.mac.select_actions(self.batch, t_ep=self.t, t_env=self.t_env, test_mode=test_mode, task_embedding=task_embedding)
+            actions = self.mac.select_actions(self.batch, t_ep=self.t, t_env=self.t_env, test_mode=test_mode, task_embedding=task_embedding, agent_embedding=agent_embedding)         
         else:
             actions = self.mac.select_actions(self.batch, t_ep=self.t, t_env=self.t_env, test_mode=test_mode)
         self.batch.update({"actions": actions}, ts=self.t)

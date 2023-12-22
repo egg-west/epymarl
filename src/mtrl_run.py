@@ -112,11 +112,17 @@ def run_sequential(args, logger):
     runner = r_REGISTRY["mtrl"](args=args, logger=logger, wandb_logger=wandb_run)
     """test task uses index that is closest to the training set"""
     if args.is_debug:
-        TRAIN_SPEED = [1.4, 2.2]
-        INTERPOLATE_SPEED = [1.8]
-        INTERPOLATE_TASK_ID = [1]
-        EXTRAPOLATE_SPEED = [1]
-        EXTRAPOLATE_TASK_ID = [1]
+        # TRAIN_SPEED = [1.4, 2.2]
+        # INTERPOLATE_SPEED = [1.8]
+        # INTERPOLATE_TASK_ID = [1]
+        # EXTRAPOLATE_SPEED = [1]
+        # EXTRAPOLATE_TASK_ID = [1]
+        SHOOT_RANGE_LIST = [4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
+        TRAIN_SHOOT_RANGE = [6.0, 8.0]
+        INTERPOLATE_TASK_ID = [0]
+        EXTRAPOLATE_TASK_ID = [0]
+        INTERPOLATE_SHOOT_RANGE = [7.0]
+        EXTRAPOLATE_SHOOT_RANGE = [5.0]
     else:
         # SPEED_LIST = [0.6, 1.0, 1.4, 1.8, 2.2, 2.6, 3.0, 3.4]
         # TRAIN_SPEED = [1.0, 1.4, 2.2, 3.0]
@@ -267,12 +273,17 @@ def run_sequential(args, logger):
     current_task_id = 0
     while sum(runner_step) <= args.t_max:
         runner = train_runner_list[current_task_id]
+        
+        task_embedding = None
+        agent_embedding = None
         if args.use_task_encoder and args.independent_task_encoder:
+            if args.use_agent_encoder:
+                agent_embedding = learner.get_agent_embedding().unsqueeze(0)
+                # print(f"{agent_embedding.shape=}") # agent_embedding.shape=torch.Size([1, 8, 64])
             task_embedding = learner.get_task_embedding(current_task_id)
-        else:
-            task_embedding = None
-            # Run for a whole episode at a time
-        episode_batch, _ = runner.run(test_mode=False, task_embedding=task_embedding)
+           
+        # Run for a whole episode at a time
+        episode_batch, _ = runner.run(test_mode=False, task_embedding=task_embedding, agent_embedding=agent_embedding)
         
         buffer.insert_episode_batch(episode_batch)
 
@@ -290,7 +301,8 @@ def run_sequential(args, logger):
 
         # Execute test runs once in a while
         n_test_runs = max(1, args.test_nepisode // runner.batch_size)
-        #if (runner.t_env - last_test_T) / args.test_interval >= 1.0:
+        
+        ######################################### TEST
         if (sum(runner_step) - last_test_T) / args.test_interval >= 1.0:
 
             logger.console_logger.info(
@@ -317,7 +329,7 @@ def run_sequential(args, logger):
                 single_env_return_list = []
                 single_env_win_rate_list = []
                 for _ in range(n_test_runs):
-                    _, statistics = test_runner.run(test_mode=True, task_embedding=task_embedding)
+                    _, statistics = test_runner.run(test_mode=True, task_embedding=task_embedding, agent_embedding=agent_embedding)
                     # dict_keys(['dead_allies', 'dead_enemies', 'battle_won', 'n_episodes', 'ep_length', 'epsilon', 'return_mean', 'return_std', 'returns'])
                     single_env_return_list.append(statistics["returns"])
                     #if not "battle_won" in statistics:
@@ -353,7 +365,7 @@ def run_sequential(args, logger):
                     single_env_return_list = []
                     single_env_win_rate_list = []
                     for _ in range(n_test_runs):
-                        _, statistics = test_runner.run(test_mode=True, task_embedding=task_embedding)
+                        _, statistics = test_runner.run(test_mode=True, task_embedding=task_embedding, agent_embedding=agent_embedding)
 
                         # dict_keys(['dead_allies', 'dead_enemies', 'battle_won', 'n_episodes', 'ep_length', 'epsilon', 'return_mean', 'return_std', 'returns'])
                         single_env_return_list.append(statistics["returns"])
@@ -391,7 +403,7 @@ def run_sequential(args, logger):
                     single_env_return_list = []
                     single_env_win_rate_list = []
                     for _ in range(n_test_runs):
-                        _, statistics = test_runner.run(test_mode=True, task_embedding=task_embedding)
+                        _, statistics = test_runner.run(test_mode=True, task_embedding=task_embedding, agent_embedding=agent_embedding)
 
                         # dict_keys(['dead_allies', 'dead_enemies', 'battle_won', 'n_episodes', 'ep_length', 'epsilon', 'return_mean', 'return_std', 'returns'])
                         single_env_return_list.append(statistics["returns"])
