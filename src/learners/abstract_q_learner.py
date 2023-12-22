@@ -139,9 +139,10 @@ class AbstractQLearner:
                 random_task_embedding = self.task_encoder(random_task_indicies[:, 0, :].squeeze(1))
                 #print(f"{task_embedding.shape=}, {random_task_embedding.shape=}")
                 task_embedding = task_embedding.unsqueeze(1).tile(1, seq_len).reshape(bs*seq_len, -1)
-                print(f"{task_embedding.shape=}")
+                # print(f"{task_embedding.shape=}") # task_embedding.shape=torch.Size([1088, 64])
+                # error 1088x240 and 304x256
 
-                fm_inputs = torch.cat([h.detach(), joint_actions, ], dim=1)
+                fm_inputs = torch.cat([h.detach(), joint_actions, task_embedding], dim=1)
                 predicted_next_state, sigma = self.forward_model(fm_inputs)
                 diff = (predicted_next_state - next_h.detach()) / sigma
                 fm_loss = torch.mean(0.5 * diff.pow(2) + torch.log(sigma))
