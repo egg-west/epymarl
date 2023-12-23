@@ -103,7 +103,7 @@ def run_sequential(args, logger):
     wandb_run = wandb.init(
         project=f"pyMARL_attack_range_{args.learner}",
         #group=f'{args.env_args["map_name"]}',
-        group=f'{group_name_prefix}-68910-{args.env_args["map_name"]}',
+        group=f'{group_name_prefix}-68-{args.env_args["map_name"]}',
         name=f'{args.seed}',
         #mode="offline"
     )

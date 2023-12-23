@@ -35,9 +35,9 @@ hypernet_embed: 64
 
 # multi-task
 use_task_encoder: True          # In MTL, this should be set to True
-independent_task_encoder: True # if False, task embedding is learned by the critic
+independent_task_encoder: False # if False, task embedding is learned by the critic
 optimal_transport_loss: False   # use optimal transport loss on trajectories instead of wasserstein between state transitions
-use_agent_encoder: True
+use_agent_encoder: False
 num_embeddings: 10
 task_embedding_dim: 64
 agent_embedding_dim: 64

@@ -229,27 +229,31 @@ class AbstractQLearner:
                 random_agent_embedding = self.agent_encoder(random_agent_indices).reshape(-1, self.args.n_agents, self.args.agent_embedding_dim)
 
                 #print(f"{random_agent_embedding.shape=}") # [2176, 8, 64]
-                random_afm_inputs = torch.cat([task_embedding, random_agent_embedding, h.detach(), agent_action], dim=2)[:TEST_SAMPLE_NUMBER]
+                random_afm_inputs = torch.cat([task_embedding, random_agent_embedding, h.detach(), agent_action], dim=2)#[:TEST_SAMPLE_NUMBER]
                 #print(f"{random_afm_inputs.shape=}") # [2176, 8, 206]
                 random_agent_predicted_next_observation, sigma = self.agent_forward_model(random_afm_inputs)
                 #print(f"{random_agent_predicted_next_observation.shape=}") # [2176, 8, 64]
-                afm_inputs = torch.cat([task_embedding, agent_embedding, h.detach(), agent_action], dim=2)[:TEST_SAMPLE_NUMBER]
+                afm_inputs = torch.cat([task_embedding, agent_embedding, h.detach(), agent_action], dim=2)#[:TEST_SAMPLE_NUMBER]
                 new_predicted_next_observations, sigma = self.agent_forward_model(afm_inputs)
-                #diff = (new_predicted_next_observations - next_h.detach()) / sigma
-                #afm_loss = torch.mean(0.5 * diff.pow(2) + torch.log(sigma))
+                diff = (new_predicted_next_observations - next_h.detach()) / sigma
+                afm_loss = torch.mean(0.5 * diff.pow(2) + torch.log(sigma))
 
-                ae_diff = torch.norm(agent_embedding.reshape(-1, agent_embedding.shape[-1])[:TEST_SAMPLE_NUMBER] - random_agent_embedding.reshape(-1, random_agent_embedding.shape[-1])[:TEST_SAMPLE_NUMBER], dim=1)
+                # ae_diff = torch.norm(agent_embedding.reshape(-1, agent_embedding.shape[-1])[:TEST_SAMPLE_NUMBER] - random_agent_embedding.reshape(-1, random_agent_embedding.shape[-1])[:TEST_SAMPLE_NUMBER], dim=1)
+                # next_observation_diff = torch.norm(
+                #     new_predicted_next_observations.reshape(-1, new_predicted_next_observations.shape[-1])[:TEST_SAMPLE_NUMBER] - random_agent_predicted_next_observation.reshape(-1, random_agent_predicted_next_observation.shape[-1])[:TEST_SAMPLE_NUMBER],
+                #     dim=1
+                # )
+                ae_diff = torch.norm(agent_embedding.reshape(-1, agent_embedding.shape[-1]) - random_agent_embedding.reshape(-1, random_agent_embedding.shape[-1]), dim=1)
                 next_observation_diff = torch.norm(
-                    new_predicted_next_observations.reshape(-1, new_predicted_next_observations.shape[-1])[:TEST_SAMPLE_NUMBER] - random_agent_predicted_next_observation.reshape(-1, random_agent_predicted_next_observation.shape[-1])[:TEST_SAMPLE_NUMBER],
+                    new_predicted_next_observations.reshape(-1, new_predicted_next_observations.shape[-1]) - random_agent_predicted_next_observation.reshape(-1, random_agent_predicted_next_observation.shape[-1]),
                     dim=1
                 )
                 self.AE_optimiser.zero_grad()
-                #ae_loss = F.mse_loss(ae_diff, next_observation_diff) + afm_loss
-                #ae_loss = F.mse_loss(ae_diff, next_observation_diff.detach())
-                ae_loss = F.mse_loss(ae_diff, next_observation_diff.detach())
+                ae_loss = F.mse_loss(ae_diff, next_observation_diff.detach()) + afm_loss
                 ae_loss.backward()
                 self.AE_optimiser.step()
                 self.wandb_logger.log({"SA/ae_loss":ae_loss.item()}, t_env)
+                self.wandb_logger.log({"SA/afm_diff":torch.mean(diff).detach().item()}, t_env)
 
         ####################### Update the agent
 
