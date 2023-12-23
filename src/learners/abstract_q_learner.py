@@ -249,7 +249,8 @@ class AbstractQLearner:
                     dim=1
                 )
                 self.AE_optimiser.zero_grad()
-                ae_loss = F.mse_loss(ae_diff, next_observation_diff.detach()) + afm_loss
+                #ae_loss = F.mse_loss(ae_diff, next_observation_diff.detach()) + afm_loss
+                ae_loss = F.mse_loss(ae_diff, next_observation_diff.detach())
                 ae_loss.backward()
                 self.AE_optimiser.step()
                 self.wandb_logger.log({"SA/ae_loss":ae_loss.item()}, t_env)
